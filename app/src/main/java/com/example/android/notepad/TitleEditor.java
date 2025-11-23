@@ -25,61 +25,55 @@ import android.view.View;
 import android.widget.EditText;
 
 /**
- * This Activity allows the user to edit a note's title. It displays a floating window
- * containing an EditText.
+ * 此 Activity 允许用户编辑笔记的标题。它显示一个包含 EditText 的浮动窗口。
  *
- * NOTE: Notice that the provider operations in this Activity are taking place on the UI thread.
- * This is not a good practice. It is only done here to make the code more readable. A real
- * application should use the {@link android.content.AsyncQueryHandler}
- * or {@link android.os.AsyncTask} object to perform operations asynchronously on a separate thread.
+ * 注意：本 Activity 中的提供者操作是在 UI 线程执行的，这并非最佳实践，仅为使代码更易读。
+ * 真实应用应使用 {@link android.content.AsyncQueryHandler} 或 {@link android.os.AsyncTask}
+ * 在单独线程中异步执行操作。
  */
 public class TitleEditor extends Activity {
 
     /**
-     * This is a special intent action that means "edit the title of a note".
+     * 特殊的 Intent 动作，表示“编辑笔记标题”。
      */
     public static final String EDIT_TITLE_ACTION = "com.android.notepad.action.EDIT_TITLE";
 
-    // Creates a projection that returns the note ID and the note contents.
+    // 创建一个投影，返回笔记 ID 与标题内容。
     private static final String[] PROJECTION = new String[] {
             NotePad.Notes._ID, // 0
             NotePad.Notes.COLUMN_NAME_TITLE, // 1
     };
 
-    // The position of the title column in a Cursor returned by the provider.
+    // 标题列在提供者返回的 Cursor 中的位置。
     private static final int COLUMN_INDEX_TITLE = 1;
 
-    // A Cursor object that will contain the results of querying the provider for a note.
+    // 用于保存查询提供者返回结果的 Cursor。
     private Cursor mCursor;
 
-    // An EditText object for preserving the edited title.
+    // 用于保存编辑后标题的 EditText。
     private EditText mText;
 
-    // A URI object for the note whose title is being edited.
+    // 当前正在编辑标题的笔记 URI。
     private Uri mUri;
 
     /**
-     * This method is called by Android when the Activity is first started. From the incoming
-     * Intent, it determines what kind of editing is desired, and then does it.
+     * 当 Activity 首次启动时由 Android 调用。通过传入的 Intent 判断所需的编辑类型并执行。
      */
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Set the View for this Activity object's UI.
+        // 设置此 Activity 的界面视图。
         setContentView(R.layout.title_editor);
 
-        // Get the Intent that activated this Activity, and from it get the URI of the note whose
-        // title we need to edit.
+        // 获取触发此 Activity 的 Intent，并从中取得需要编辑标题的笔记 URI。
         mUri = getIntent().getData();
 
         /*
-         * Using the URI passed in with the triggering Intent, gets the note.
+         * 使用触发 Intent 传入的 URI 获取笔记。
          *
-         * Note: This is being done on the UI thread. It will block the thread until the query
-         * completes. In a sample app, going against a simple provider based on a local database,
-         * the block will be momentary, but in a real app you should use
-         * android.content.AsyncQueryHandler or android.os.AsyncTask.
+         * 注意：此操作在 UI 线程进行，会阻塞线程直到查询完成。在示例应用中基于本地数据库
+         * 的简单提供者，阻塞只是短暂的；在真实应用中应使用 AsyncQueryHandler 或 AsyncTask。
          */
 
         mCursor = managedQuery(
@@ -90,66 +84,56 @@ public class TitleEditor extends Activity {
             null         // No sort order is needed.
         );
 
-        // Gets the View ID for the EditText box
+        // 获取 EditText 的视图 ID
         mText = (EditText) this.findViewById(R.id.title);
     }
 
     /**
-     * This method is called when the Activity is about to come to the foreground. This happens
-     * when the Activity comes to the top of the task stack, OR when it is first starting.
+     * 当 Activity 即将进入前台时调用：包括位于任务栈顶部或首次启动。
      *
-     * Displays the current title for the selected note.
+     * 显示所选笔记的当前标题。
      */
     @Override
     protected void onResume() {
         super.onResume();
 
-        // Verifies that the query made in onCreate() actually worked. If it worked, then the
-        // Cursor object is not null. If it is *empty*, then mCursor.getCount() == 0.
+        // 验证 onCreate() 中的查询是否成功：成功则 Cursor 非空；空游标满足 mCursor.getCount() == 0。
         if (mCursor != null) {
 
-            // The Cursor was just retrieved, so its index is set to one record *before* the first
-            // record retrieved. This moves it to the first record.
+            // 光标刚被取回，其索引指向首条记录之前，调用 moveToFirst() 移动到首条记录。
             mCursor.moveToFirst();
 
-            // Displays the current title text in the EditText object.
+            // 在 EditText 中显示当前标题文本。
             mText.setText(mCursor.getString(COLUMN_INDEX_TITLE));
         }
     }
 
     /**
-     * This method is called when the Activity loses focus.
+     * 当 Activity 失去焦点时调用。
      *
-     * For Activity objects that edit information, onPause() may be the one place where changes are
-     * saved. The Android application model is predicated on the idea that "save" and "exit" aren't
-     * required actions. When users navigate away from an Activity, they shouldn't have to go back
-     * to it to complete their work. The act of going away should save everything and leave the
-     * Activity in a state where Android can destroy it if necessary.
+     * 对于编辑信息的 Activity，onPause() 往往是保存更改的唯一位置。Android 的应用模型强调
+     * “保存”和“退出”不应是必须的操作；当用户离开 Activity 时，应自动保存并让 Activity 处于可被销毁的状态。
      *
-     * Updates the note with the text currently in the text box.
+     * 用当前文本框中的内容更新笔记。
      */
     @Override
     protected void onPause() {
         super.onPause();
 
-        // Verifies that the query made in onCreate() actually worked. If it worked, then the
-        // Cursor object is not null. If it is *empty*, then mCursor.getCount() == 0.
+        // 验证 onCreate() 中的查询是否成功：成功则 Cursor 非空；空游标满足 mCursor.getCount() == 0。
 
         if (mCursor != null) {
 
-            // Creates a values map for updating the provider.
+            // 创建用于更新提供者的值映射。
             ContentValues values = new ContentValues();
 
-            // In the values map, sets the title to the current contents of the edit box.
+            // 在值映射中将标题设置为编辑框当前内容。
             values.put(NotePad.Notes.COLUMN_NAME_TITLE, mText.getText().toString());
 
             /*
-             * Updates the provider with the note's new title.
-             *
-             * Note: This is being done on the UI thread. It will block the thread until the
-             * update completes. In a sample app, going against a simple provider based on a
-             * local database, the block will be momentary, but in a real app you should use
-             * android.content.AsyncQueryHandler or android.os.AsyncTask.
+             * 使用新标题更新提供者。
+             * 注意：此操作在 UI 线程进行，会阻塞线程直到更新完成。示例应用中阻塞时间短，实际应用中
+             * 应使用 AsyncQueryHandler 或 AsyncTask。
              */
             getContentResolver().update(
                 mUri,    // The URI for the note to update.

@@ -14,11 +14,9 @@
      limitations under the License.
 -->
 
-<!-- Declare the contents of this Android application.  The namespace
-     attribute brings in the Android platform namespace, and the package
-     supplies a unique name for the application.  When writing your
-     own application, the package name must be changed from "com.example.*"
-     to come from a domain that you own or have control over. -->
+<!-- 声明此 Android 应用的内容。namespace 属性引入 Android 平台命名空间，
+     package 提供应用的唯一名称。编写自己的应用时，应将包名从 "com.example.*"
+     改为你拥有或可控制的域名。 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.android.notepad" >
 
@@ -55,8 +53,7 @@
             android:screenOrientation="sensor"
             android:configChanges="keyboardHidden|orientation"
         >
-            <!-- This filter says that we can view or edit the data of
-                 a single note -->
+            <!-- 此过滤器声明可查看或编辑单条笔记的数据 -->
             <intent-filter android:label="@string/resolve_edit">
                 <action android:name="android.intent.action.VIEW" />
                 <action android:name="android.intent.action.EDIT" />
@@ -65,10 +62,8 @@
                 <data android:mimeType="vnd.android.cursor.item/vnd.google.note" />
             </intent-filter>
 
-            <!-- This filter says that we can create a new note inside
-                 of a directory of notes.  The INSERT action creates an
-                 empty note; the PASTE action initializes a new note from
-                 the current contents of the clipboard. -->
+            <!-- 此过滤器声明可在笔记目录中创建新笔记：
+                 INSERT 动作为创建空笔记；PASTE 动作为用剪贴板当前内容初始化新笔记。 -->
             <intent-filter>
                 <action android:name="android.intent.action.INSERT" />
                 <action android:name="android.intent.action.PASTE" />
@@ -83,24 +78,19 @@
             android:icon="@drawable/ic_menu_edit"
             android:theme="@android:style/Theme.Holo.Dialog"
             android:windowSoftInputMode="stateVisible">
-            <!-- This activity implements an alternative action that can be
-                 performed on notes: editing their title.  It can be used as
-                 a default operation if the user invokes this action, and is
-                 available as an alternative action for any note data. -->
+            <!-- 此 Activity 提供可对笔记执行的替代操作：编辑标题。
+                 当用户调用该动作时可作为默认操作，并可作为任何笔记数据的替代操作。 -->
             <intent-filter android:label="@string/resolve_title">
-                <!-- This is the action we perform.  It is a custom action we
-                     define for our application, not a generic VIEW or EDIT
-                     action since we are not a general note viewer/editor. -->
+                <!-- 我们执行的动作：为应用自定义动作，而非通用 VIEW/EDIT，
+                     因为我们并非通用的笔记查看/编辑器。 -->
                 <action android:name="com.android.notepad.action.EDIT_TITLE" />
-                <!-- DEFAULT: execute if being directly invoked. -->
+                <!-- DEFAULT：被直接调用时执行。 -->
                 <category android:name="android.intent.category.DEFAULT" />
-                <!-- ALTERNATIVE: show as an alternative action when the user is
-                     working with this type of data. -->
+                <!-- ALTERNATIVE：用户处理该类型数据时显示为替代动作。 -->
                 <category android:name="android.intent.category.ALTERNATIVE" />
-                <!-- SELECTED_ALTERNATIVE: show as an alternative action the user
-                     can perform when selecting this type of data. -->
+                <!-- SELECTED_ALTERNATIVE：当选择该类型数据时可执行的替代动作。 -->
                 <category android:name="android.intent.category.SELECTED_ALTERNATIVE" />
-                <!-- This is the data type we operate on. -->
+                <!-- 我们操作的数据类型。 -->
                 <data android:mimeType="vnd.android.cursor.item/vnd.google.note" />
             </intent-filter>
         </activity>
