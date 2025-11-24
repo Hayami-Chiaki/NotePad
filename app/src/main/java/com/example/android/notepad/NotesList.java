@@ -39,6 +39,7 @@ import android.widget.AdapterView;
 import android.widget.ListView;
 import android.widget.SimpleCursorAdapter;
 import android.widget.TextView;
+import android.widget.SearchView;
 import java.util.Locale;
 import java.util.Date;
 import java.util.TimeZone;
@@ -61,6 +62,7 @@ public class NotesList extends ListActivity {
     /**
      * The columns needed by the cursor adapter
      */
+    // 列表查询投影：ID、标题、最后修改时间
     private static final String[] PROJECTION = new String[] {
             NotePad.Notes._ID, // 0
             NotePad.Notes.COLUMN_NAME_TITLE, // 1
@@ -69,6 +71,9 @@ public class NotesList extends ListActivity {
 
     /** 标题列在 Cursor 中的索引 */
     private static final int COLUMN_INDEX_TITLE = 1;
+
+    // 列表适配器引用，便于在搜索时更新游标
+    private SimpleCursorAdapter mAdapter;
 
     /**
      * 当 Android 从零启动此 Activity 时会调用 onCreate。
@@ -149,8 +154,9 @@ public class NotesList extends ListActivity {
             }
         });
 
-        // 为 ListView 设置刚创建的游标适配器。
-        setListAdapter(adapter);
+        // 为 ListView 设置刚创建的游标适配器，并保存引用。
+        mAdapter = adapter;
+        setListAdapter(mAdapter);
     }
 
     /**
@@ -168,6 +174,38 @@ public class NotesList extends ListActivity {
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.list_options_menu, menu);
 
+        // 配置搜索框：根据标题或内容进行查询
+        final MenuItem searchItem = menu.findItem(R.id.menu_search);
+        final SearchView searchView = (SearchView) searchItem.getActionView();
+        searchView.setQueryHint("搜索标题或内容");
+        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+            @Override
+            public boolean onQueryTextSubmit(String query) {
+                applyFilter(query);
+                return true;
+            }
+
+            @Override
+            public boolean onQueryTextChange(String newText) {
+                applyFilter(newText);
+                return true;
+            }
+        });
+
+        // 关闭搜索时恢复全量列表
+        searchItem.setOnActionExpandListener(new MenuItem.OnActionExpandListener() {
+            @Override
+            public boolean onMenuItemActionExpand(MenuItem item) {
+                return true;
+            }
+
+            @Override
+            public boolean onMenuItemActionCollapse(MenuItem item) {
+                applyFilter("");
+                return true;
+            }
+        });
+
         // 生成可在整个列表上执行的附加操作。正常安装下此处通常没有附加操作，
         // 但这允许其他应用用它们的操作扩展我们的菜单。
         Intent intent = new Intent(null, getIntent().getData());
@@ -176,6 +214,32 @@ public class NotesList extends ListActivity {
                 new ComponentName(this, NotesList.class), null, intent, 0, null);
 
         return super.onCreateOptionsMenu(menu);
+    }
+
+    // 根据查询内容过滤笔记（标题或内容模糊匹配），空字符串恢复全量
+    private void applyFilter(String query) {
+        Uri uri = getIntent().getData();
+        String selection = null;
+        String[] selectionArgs = null;
+        if (query != null) {
+            query = query.trim();
+        }
+        if (query != null && query.length() > 0) {
+            selection = NotePad.Notes.COLUMN_NAME_TITLE + " LIKE ? OR " +
+                    NotePad.Notes.COLUMN_NAME_NOTE + " LIKE ?";
+            String like = "%" + query + "%";
+            selectionArgs = new String[] { like, like };
+        }
+
+        Cursor c = getContentResolver().query(
+                uri,
+                PROJECTION,
+                selection,
+                selectionArgs,
+                NotePad.Notes.DEFAULT_SORT_ORDER
+        );
+        // 更新适配器游标，自动关闭旧游标
+        mAdapter.changeCursor(c);
     }
 
     @Override
