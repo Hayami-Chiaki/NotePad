@@ -62,7 +62,7 @@ public class NotePadProvider extends ContentProvider implements PipeDataWriter<C
     /**
      * 数据库版本
      */
-    private static final int DATABASE_VERSION = 2;
+    private static final int DATABASE_VERSION = 3;
 
     /**
      * 从数据库选择列所用的投影映射
@@ -73,6 +73,7 @@ public class NotePadProvider extends ContentProvider implements PipeDataWriter<C
      * 处理实时文件夹所用的投影映射
      */
     private static HashMap<String, String> sLiveFolderProjectionMap;
+    private static HashMap<String, String> sTodosProjectionMap;
 
     /**
      * 读取单条笔记的标准投影。
@@ -96,6 +97,8 @@ public class NotePadProvider extends ContentProvider implements PipeDataWriter<C
 
     // 传入 URI 匹配 Live Folder 模式
     private static final int LIVE_FOLDER_NOTES = 3;
+    private static final int TODOS = 4;
+    private static final int TODO_ID = 5;
 
     /**
      * UriMatcher 实例
@@ -125,6 +128,8 @@ public class NotePadProvider extends ContentProvider implements PipeDataWriter<C
 
         // 添加以 live_folders/notes 结尾的模式，路由到 LIVE_FOLDER_NOTES 操作
         sUriMatcher.addURI(NotePad.AUTHORITY, "live_folders/notes", LIVE_FOLDER_NOTES);
+        sUriMatcher.addURI(NotePad.AUTHORITY, "todos", TODOS);
+        sUriMatcher.addURI(NotePad.AUTHORITY, "todos/#", TODO_ID);
 
         /*
          * 创建并初始化返回所有列的投影映射
@@ -164,6 +169,13 @@ public class NotePadProvider extends ContentProvider implements PipeDataWriter<C
         // 将 "NAME" 映射为 "title AS NAME"
         sLiveFolderProjectionMap.put(LiveFolders.NAME, NotePad.Notes.COLUMN_NAME_TITLE + " AS " +
             LiveFolders.NAME);
+        sTodosProjectionMap = new HashMap<String, String>();
+        sTodosProjectionMap.put(NotePad.Todos._ID, NotePad.Todos._ID);
+        sTodosProjectionMap.put(NotePad.Todos.COLUMN_NAME_TITLE, NotePad.Todos.COLUMN_NAME_TITLE);
+        sTodosProjectionMap.put(NotePad.Todos.COLUMN_NAME_CONTENT, NotePad.Todos.COLUMN_NAME_CONTENT);
+        sTodosProjectionMap.put(NotePad.Todos.COLUMN_NAME_COMPLETED, NotePad.Todos.COLUMN_NAME_COMPLETED);
+        sTodosProjectionMap.put(NotePad.Todos.COLUMN_NAME_CREATE_DATE, NotePad.Todos.COLUMN_NAME_CREATE_DATE);
+        sTodosProjectionMap.put(NotePad.Todos.COLUMN_NAME_MODIFICATION_DATE, NotePad.Todos.COLUMN_NAME_MODIFICATION_DATE);
     }
 
     /**
@@ -190,25 +202,35 @@ public class NotePadProvider extends ContentProvider implements PipeDataWriter<C
                    + NotePad.Notes.COLUMN_NAME_CREATE_DATE + " INTEGER,"
                    + NotePad.Notes.COLUMN_NAME_MODIFICATION_DATE + " INTEGER"
                    + ");");
+           db.execSQL("CREATE TABLE " + NotePad.Todos.TABLE_NAME + " ("
+                   + NotePad.Todos._ID + " INTEGER PRIMARY KEY,"
+                   + NotePad.Todos.COLUMN_NAME_TITLE + " TEXT NOT NULL,"
+                   + NotePad.Todos.COLUMN_NAME_CONTENT + " TEXT,"
+                   + NotePad.Todos.COLUMN_NAME_COMPLETED + " INTEGER DEFAULT 0,"
+                   + NotePad.Todos.COLUMN_NAME_CREATE_DATE + " INTEGER,"
+                   + NotePad.Todos.COLUMN_NAME_MODIFICATION_DATE + " INTEGER"
+                   + ");");
        }
 
        /**
         * 展示当底层数据存储发生变化时提供者需要考虑的处理方式。
         * 示例中通过清空现有数据来升级数据库；真实应用应就地升级。
         */
-       @Override
-       public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+      @Override
+      public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+          Log.w(TAG, "Upgrading database from version " + oldVersion + " to " + newVersion);
 
-           // 记录数据库正在升级的日志
-           Log.w(TAG, "Upgrading database from version " + oldVersion + " to "
-                   + newVersion + ", which will destroy all old data");
-
-           // 删除表与现有数据
-           db.execSQL("DROP TABLE IF EXISTS notes");
-
-           // 以新版本重新创建数据库
-           onCreate(db);
-       }
+          if (oldVersion < 3) {
+              db.execSQL("CREATE TABLE IF NOT EXISTS " + NotePad.Todos.TABLE_NAME + " ("
+                      + NotePad.Todos._ID + " INTEGER PRIMARY KEY,"
+                      + NotePad.Todos.COLUMN_NAME_TITLE + " TEXT NOT NULL,"
+                      + NotePad.Todos.COLUMN_NAME_CONTENT + " TEXT,"
+                      + NotePad.Todos.COLUMN_NAME_COMPLETED + " INTEGER DEFAULT 0,"
+                      + NotePad.Todos.COLUMN_NAME_CREATE_DATE + " INTEGER,"
+                      + NotePad.Todos.COLUMN_NAME_MODIFICATION_DATE + " INTEGER"
+                      + ");");
+          }
+      }
    }
 
    /**
@@ -242,7 +264,8 @@ public class NotePadProvider extends ContentProvider implements PipeDataWriter<C
        /**
         * 根据 URI 模式选择投影并调整 where 子句。
         */
-       switch (sUriMatcher.match(uri)) {
+       int match = sUriMatcher.match(uri);
+       switch (match) {
            // 若传入 URI 为 notes，使用 Notes 的投影
            case NOTES:
                qb.setProjectionMap(sNotesProjectionMap);
@@ -265,6 +288,18 @@ public class NotePadProvider extends ContentProvider implements PipeDataWriter<C
                qb.setProjectionMap(sLiveFolderProjectionMap);
                break;
 
+           case TODOS:
+               qb.setTables(NotePad.Todos.TABLE_NAME);
+               qb.setProjectionMap(sTodosProjectionMap);
+               break;
+
+           case TODO_ID:
+               qb.setTables(NotePad.Todos.TABLE_NAME);
+               qb.setProjectionMap(sTodosProjectionMap);
+               qb.appendWhere(
+                       NotePad.Todos._ID + "=" + uri.getPathSegments().get(NotePad.Todos.TODO_ID_PATH_POSITION));
+               break;
+
            default:
                // 若 URI 不匹配任何已知模式，抛出异常。
                throw new IllegalArgumentException("Unknown URI " + uri);
@@ -274,7 +309,7 @@ public class NotePadProvider extends ContentProvider implements PipeDataWriter<C
        String orderBy;
        // 若未指定排序，使用默认排序
        if (TextUtils.isEmpty(sortOrder)) {
-           orderBy = NotePad.Notes.DEFAULT_SORT_ORDER;
+           orderBy = (match == TODOS || match == TODO_ID) ? NotePad.Todos.DEFAULT_SORT_ORDER : NotePad.Notes.DEFAULT_SORT_ORDER;
        } else {
            // 否则使用传入的排序
            orderBy = sortOrder;
@@ -324,6 +359,11 @@ public class NotePadProvider extends ContentProvider implements PipeDataWriter<C
           // 若模式为 note IDs，返回单项类型。
            case NOTE_ID:
                return NotePad.Notes.CONTENT_ITEM_TYPE;
+
+           case TODOS:
+               return NotePad.Todos.CONTENT_TYPE;
+           case TODO_ID:
+               return NotePad.Todos.CONTENT_ITEM_TYPE;
 
           // 若 URI 模式不匹配任何允许的模式，抛出异常。
            default:
@@ -463,7 +503,8 @@ public class NotePadProvider extends ContentProvider implements PipeDataWriter<C
     public Uri insert(Uri uri, ContentValues initialValues) {
 
         // 验证传入的 URI。插入仅允许使用完整的提供者 URI。
-        if (sUriMatcher.match(uri) != NOTES) {
+        int match = sUriMatcher.match(uri);
+        if (match != NOTES && match != TODOS) {
             throw new IllegalArgumentException("Unknown URI " + uri);
         }
 
@@ -482,43 +523,64 @@ public class NotePadProvider extends ContentProvider implements PipeDataWriter<C
         // 获取当前系统时间（毫秒）
         Long now = Long.valueOf(System.currentTimeMillis());
 
-        // 若映射未包含创建时间，则设置为当前时间。
-        if (values.containsKey(NotePad.Notes.COLUMN_NAME_CREATE_DATE) == false) {
-            values.put(NotePad.Notes.COLUMN_NAME_CREATE_DATE, now);
-        }
-
-        // 若映射未包含修改时间，则设置为当前时间。
-        if (values.containsKey(NotePad.Notes.COLUMN_NAME_MODIFICATION_DATE) == false) {
-            values.put(NotePad.Notes.COLUMN_NAME_MODIFICATION_DATE, now);
-        }
-
-        // 若映射未包含标题，则设置为默认标题。
-        if (values.containsKey(NotePad.Notes.COLUMN_NAME_TITLE) == false) {
-            Resources r = Resources.getSystem();
-            values.put(NotePad.Notes.COLUMN_NAME_TITLE, r.getString(android.R.string.untitled));
-        }
-
-        // 若映射未包含笔记文本，则设置为空字符串。
-        if (values.containsKey(NotePad.Notes.COLUMN_NAME_NOTE) == false) {
-            values.put(NotePad.Notes.COLUMN_NAME_NOTE, "");
+        if (match == NOTES) {
+            if (values.containsKey(NotePad.Notes.COLUMN_NAME_CREATE_DATE) == false) {
+                values.put(NotePad.Notes.COLUMN_NAME_CREATE_DATE, now);
+            }
+            if (values.containsKey(NotePad.Notes.COLUMN_NAME_MODIFICATION_DATE) == false) {
+                values.put(NotePad.Notes.COLUMN_NAME_MODIFICATION_DATE, now);
+            }
+            if (values.containsKey(NotePad.Notes.COLUMN_NAME_TITLE) == false) {
+                Resources r = Resources.getSystem();
+                values.put(NotePad.Notes.COLUMN_NAME_TITLE, r.getString(android.R.string.untitled));
+            }
+            if (values.containsKey(NotePad.Notes.COLUMN_NAME_NOTE) == false) {
+                values.put(NotePad.Notes.COLUMN_NAME_NOTE, "");
+            }
+        } else {
+            if (values.containsKey(NotePad.Todos.COLUMN_NAME_CREATE_DATE) == false) {
+                values.put(NotePad.Todos.COLUMN_NAME_CREATE_DATE, now);
+            }
+            if (values.containsKey(NotePad.Todos.COLUMN_NAME_MODIFICATION_DATE) == false) {
+                values.put(NotePad.Todos.COLUMN_NAME_MODIFICATION_DATE, now);
+            }
+            if (values.containsKey(NotePad.Todos.COLUMN_NAME_TITLE) == false) {
+                values.put(NotePad.Todos.COLUMN_NAME_TITLE, "");
+            }
+            if (values.containsKey(NotePad.Todos.COLUMN_NAME_CONTENT) == false) {
+                values.put(NotePad.Todos.COLUMN_NAME_CONTENT, "");
+            }
+            if (values.containsKey(NotePad.Todos.COLUMN_NAME_COMPLETED) == false) {
+                values.put(NotePad.Todos.COLUMN_NAME_COMPLETED, 0);
+            }
         }
 
         // 以写入模式打开数据库对象。
         SQLiteDatabase db = mOpenHelper.getWritableDatabase();
 
         // 执行插入并返回新笔记的 ID。
-        long rowId = db.insert(
-            NotePad.Notes.TABLE_NAME,        // The table to insert into.
-            NotePad.Notes.COLUMN_NAME_NOTE,  // A hack, SQLite sets this column value to null
-                                             // if values is empty.
-            values                           // A map of column names, and the values to insert
-                                             // into the columns.
-        );
+        long rowId;
+        Uri baseUri;
+        if (match == NOTES) {
+            rowId = db.insert(
+                NotePad.Notes.TABLE_NAME,
+                NotePad.Notes.COLUMN_NAME_NOTE,
+                values
+            );
+            baseUri = NotePad.Notes.CONTENT_ID_URI_BASE;
+        } else {
+            rowId = db.insert(
+                NotePad.Todos.TABLE_NAME,
+                NotePad.Todos.COLUMN_NAME_CONTENT,
+                values
+            );
+            baseUri = NotePad.Todos.CONTENT_ID_URI_BASE;
+        }
 
         // If the insert succeeded, the row ID exists.
         if (rowId > 0) {
             // 创建符合笔记 ID 模式、并附加新行 ID 的 URI。
-            Uri noteUri = ContentUris.withAppendedId(NotePad.Notes.CONTENT_ID_URI_BASE, rowId);
+            Uri noteUri = ContentUris.withAppendedId(baseUri, rowId);
 
             // 通知对此提供者注册的观察者数据已改变。
             getContext().getContentResolver().notifyChange(noteUri, null);
@@ -580,6 +642,22 @@ public class NotePadProvider extends ContentProvider implements PipeDataWriter<C
                     finalWhere,                // The final WHERE clause
                     whereArgs                  // The incoming where clause values.
                 );
+                break;
+
+            case TODOS:
+                count = db.delete(
+                        NotePad.Todos.TABLE_NAME,
+                        where,
+                        whereArgs
+                );
+                break;
+
+            case TODO_ID:
+                finalWhere = NotePad.Todos._ID + " = " + uri.getPathSegments().get(NotePad.Todos.TODO_ID_PATH_POSITION);
+                if (where != null) {
+                    finalWhere = finalWhere + " AND " + where;
+                }
+                count = db.delete(NotePad.Todos.TABLE_NAME, finalWhere, whereArgs);
                 break;
 
             // 若传入模式非法，抛出异常。
@@ -657,6 +735,26 @@ public class NotePadProvider extends ContentProvider implements PipeDataWriter<C
                                               // placeholders for whereArgs
                     whereArgs                 // The where clause column values to select on, or
                                               // null if the values are in the where argument.
+                );
+                break;
+            case TODOS:
+                count = db.update(
+                        NotePad.Todos.TABLE_NAME,
+                        values,
+                        where,
+                        whereArgs
+                );
+                break;
+            case TODO_ID:
+                finalWhere = NotePad.Todos._ID + " = " + uri.getPathSegments().get(NotePad.Todos.TODO_ID_PATH_POSITION);
+                if (where !=null) {
+                    finalWhere = finalWhere + " AND " + where;
+                }
+                count = db.update(
+                        NotePad.Todos.TABLE_NAME,
+                        values,
+                        finalWhere,
+                        whereArgs
                 );
                 break;
             // 若传入模式非法，抛出异常。

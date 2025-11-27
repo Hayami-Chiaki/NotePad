@@ -31,9 +31,18 @@
     <string name="menu_copy">Copy</string>
     <string name="menu_paste">Paste</string>
     <string name="menu_search">Search</string>
+    <string name="menu_filter">筛选</string>
+    <string name="filter_all">全部</string>
+    <string name="filter_active">未完成</string>
+    <string name="filter_completed">已完成</string>
+    <string name="batch_delete_completed">删除全部已完成</string>
+    <string name="title_todos_list">Todos</string>
+    <string name="title_required">标题不能为空</string>
+    <string name="nav_notes">笔记</string>
+    <string name="nav_todos">待办</string>
 
     <string name="button_ok">OK</string>
-    <string name="text_title">Title:</string>
+    <string name="text_title">无标题</string>
 
     <string name="resolve_edit">Edit note</string>
     <string name="resolve_title">Edit title</string>
@@ -41,4 +50,6 @@
     <string name="error_title">Error</string>
     <string name="error_message">Error loading note</string>
     <string name="nothing_to_save">There is nothing to save</string>
+    <string name="untitled">无标题</string>
+    
 </resources>

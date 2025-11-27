@@ -48,6 +48,31 @@
             </intent-filter>
         </activity>
 
+        <activity android:name="TodoList" android:label="@string/title_todos_list">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <action android:name="android.intent.action.PICK" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="vnd.android.cursor.dir/vnd.google.todo" />
+            </intent-filter>
+        </activity>
+        <activity android:name="TodoEditor"
+            android:theme="@android:style/Theme.Holo.Light"
+            android:screenOrientation="sensor"
+            android:configChanges="keyboardHidden|orientation">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <action android:name="android.intent.action.EDIT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="vnd.android.cursor.item/vnd.google.todo" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.INSERT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="vnd.android.cursor.dir/vnd.google.todo" />
+            </intent-filter>
+        </activity>
+
         <activity android:name="NoteEditor"
             android:theme="@android:style/Theme.Holo.Light"
             android:screenOrientation="sensor"
@@ -73,27 +98,7 @@
 
         </activity>
 
-        <activity android:name="TitleEditor"
-            android:label="@string/title_edit_title"
-            android:icon="@drawable/ic_menu_edit"
-            android:theme="@android:style/Theme.Holo.Dialog"
-            android:windowSoftInputMode="stateVisible">
-            <!-- 此 Activity 提供可对笔记执行的替代操作：编辑标题。
-                 当用户调用该动作时可作为默认操作，并可作为任何笔记数据的替代操作。 -->
-            <intent-filter android:label="@string/resolve_title">
-                <!-- 我们执行的动作：为应用自定义动作，而非通用 VIEW/EDIT，
-                     因为我们并非通用的笔记查看/编辑器。 -->
-                <action android:name="com.android.notepad.action.EDIT_TITLE" />
-                <!-- DEFAULT：被直接调用时执行。 -->
-                <category android:name="android.intent.category.DEFAULT" />
-                <!-- ALTERNATIVE：用户处理该类型数据时显示为替代动作。 -->
-                <category android:name="android.intent.category.ALTERNATIVE" />
-                <!-- SELECTED_ALTERNATIVE：当选择该类型数据时可执行的替代动作。 -->
-                <category android:name="android.intent.category.SELECTED_ALTERNATIVE" />
-                <!-- 我们操作的数据类型。 -->
-                <data android:mimeType="vnd.android.cursor.item/vnd.google.note" />
-            </intent-filter>
-        </activity>
+        
 
         <activity android:name="NotesLiveFolder" android:label="@string/live_folder_name"
             android:icon="@drawable/live_folder_notes">

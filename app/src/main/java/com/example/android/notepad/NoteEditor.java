@@ -75,6 +75,7 @@ public class NoteEditor extends Activity {
     private Uri mUri;
     private Cursor mCursor;
     private EditText mText;
+    private EditText mTitle;
     private String mOriginalContent;
 
     /**
@@ -215,6 +216,7 @@ public class NoteEditor extends Activity {
 
         // 获取布局中的 EditText 句柄。
         mText = (EditText) findViewById(R.id.note);
+        mTitle = (EditText) findViewById(R.id.edit_title);
 
         /*
          * 若 Activity 之前停止过，其状态保存在 ORIGINAL_CONTENT 键中，这里恢复该状态。
@@ -246,7 +248,7 @@ public class NoteEditor extends Activity {
              */
             mCursor.moveToFirst();
 
-            // 根据当前状态调整 Activity 的窗口标题。
+            // 根据当前状态调整 Activity 的窗口标题并填充标题输入框。
             if (mState == STATE_EDIT) {
                 // 将笔记标题包含到 Activity 的标题中
                 int colTitleIndex = mCursor.getColumnIndex(NotePad.Notes.COLUMN_NAME_TITLE);
@@ -254,6 +256,9 @@ public class NoteEditor extends Activity {
                 Resources res = getResources();
                 String text = String.format(res.getString(R.string.title_edit), title);
                 setTitle(text);
+                if (mTitle != null) {
+                    mTitle.setText(title);
+                }
             // 插入状态下将标题设置为“创建”
             } else if (mState == STATE_INSERT) {
                 setTitle(getText(R.string.title_create));
@@ -302,36 +307,13 @@ public class NoteEditor extends Activity {
     @Override
     protected void onPause() {
         super.onPause();
+        // 不在 onPause 自动保存，改为仅在显式“保存”时写入
+    }
 
-        /*
-         * 检查查询是否未失败（见 onCreate()）。即使无记录返回，除非发生异常，Cursor 也会存在。
-         */
-        if (mCursor != null) {
-
-            // Get the current note text.
-            String text = mText.getText().toString();
-            int length = text.length();
-
-            /*
-             * 若 Activity 正在结束且当前笔记无文本，则返回 RESULT_CANCELED 并删除该笔记，
-             * 即使是编辑状态也视为用户希望清空（删除）。
-             */
-            if (isFinishing() && (length == 0)) {
-                setResult(RESULT_CANCELED);
-                deleteNote();
-
-                /*
-                 * 将编辑写入提供者。笔记已被编辑的判定包括：编辑了现有笔记，或插入了新笔记。
-                 * 后者中 onCreate() 已插入空笔记，当前正在编辑该新笔记。
-                 */
-            } else if (mState == STATE_EDIT) {
-                // Creates a map to contain the new values for the columns
-                updateNote(text, null);
-            } else if (mState == STATE_INSERT) {
-                updateNote(text, text);
-                mState = STATE_EDIT;
-          }
-        }
+    @Override
+    public void onBackPressed() {
+        // 按返回视为取消更改：编辑状态恢复原文，新建状态删除占位
+        cancelNote();
     }
 
     /**
@@ -346,15 +328,7 @@ public class NoteEditor extends Activity {
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.editor_options_menu, menu);
 
-        // 仅为已保存的笔记添加额外菜单项
-        if (mState == STATE_EDIT) {
-            // 将可处理该数据的其他 Activity 的菜单项也附加上。
-            // 在系统中查询实现 ALTERNATIVE_ACTION 的 Activity，并为每个结果添加菜单项。
-            Intent intent = new Intent(null, mUri);
-            intent.addCategory(Intent.CATEGORY_ALTERNATIVE);
-            menu.addIntentOptions(Menu.CATEGORY_ALTERNATIVE, 0, 0,
-                    new ComponentName(this, NoteEditor.class), null, intent, 0, null);
-        }
+        // 不再附加“Edit title”等替代操作到菜单
 
         return super.onCreateOptionsMenu(menu);
     }
@@ -384,7 +358,8 @@ public class NoteEditor extends Activity {
         int id = item.getItemId();
         if(id== R.id.menu_save) {
             String text = mText.getText().toString();
-            updateNote(text, null);
+            String title = mTitle != null ? mTitle.getText().toString() : null;
+            updateNote(text, title);
             finish();
         } else if (id == R.id.menu_delete) {
             deleteNote();
@@ -471,25 +446,13 @@ public class NoteEditor extends Activity {
 
         // 若为插入新笔记，则为其创建初始标题。
         if (mState == STATE_INSERT) {
-
-            // 若未提供标题参数，则从笔记文本生成一个标题。
-            if (title == null) {
-  
-                // 获取笔记长度
-                int length = text.length();
-
-                // 通过截取文本子串设置标题：最多 30 字符，或笔记长度两者取小。
-                title = text.substring(0, Math.min(30, length));
-  
-                // 若结果长度超过 30，则去除末尾空格
-                if (length > 30) {
-                    int lastSpace = title.lastIndexOf(' ');
-                    if (lastSpace > 0) {
-                        title = title.substring(0, lastSpace);
-                    }
+            if (title == null || title.length() == 0) {
+                if (text != null && text.length() > 0) {
+                    title = getString(R.string.untitled);
+                } else {
+                    title = "";
                 }
             }
-            // 在值映射中设置标题
             values.put(NotePad.Notes.COLUMN_NAME_TITLE, title);
         } else if (title != null) {
             // 在值映射中设置标题

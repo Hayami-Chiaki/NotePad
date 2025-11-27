@@ -39,6 +39,9 @@ import android.widget.AdapterView;
 import android.widget.ListView;
 import android.widget.SimpleCursorAdapter;
 import android.widget.TextView;
+import android.widget.Button;
+import android.widget.ImageView;
+import android.graphics.Color;
 import android.widget.SearchView;
 import java.util.Locale;
 import java.util.Date;
@@ -84,6 +87,9 @@ public class NotesList extends ListActivity {
 
         // 用户无需长按按键即可使用菜单快捷键。
         setDefaultKeyMode(DEFAULT_KEYS_SHORTCUT);
+
+        // 设置包含底部导航的自定义布局（包含 @android:id/list）
+        setContentView(R.layout.activity_notes_list);
 
         /* If no data is given in the Intent that started this Activity, then this Activity
          * was started when the intent filter matched a MAIN action. We should use the default
@@ -157,6 +163,37 @@ public class NotesList extends ListActivity {
         // 为 ListView 设置刚创建的游标适配器，并保存引用。
         mAdapter = adapter;
         setListAdapter(mAdapter);
+
+        // 底部导航美化：图标+文字，设置选中态
+        ImageView tabNotesIcon = (ImageView) findViewById(R.id.tab_notes_icon);
+        TextView tabNotesLabel = (TextView) findViewById(R.id.tab_notes_label);
+        ImageView tabTodosIcon = (ImageView) findViewById(R.id.tab_todos_icon);
+        TextView tabTodosLabel = (TextView) findViewById(R.id.tab_todos_label);
+
+        final int selectedColor = Color.parseColor("#2196F3");
+        final int unselectedColor = Color.parseColor("#9E9E9E");
+
+        if (tabNotesIcon != null && tabNotesLabel != null) {
+            tabNotesIcon.setColorFilter(selectedColor);
+            tabNotesLabel.setTextColor(selectedColor);
+        }
+        if (tabTodosIcon != null && tabTodosLabel != null) {
+            tabTodosIcon.setColorFilter(unselectedColor);
+            tabTodosLabel.setTextColor(unselectedColor);
+        }
+
+        View tabNotes = findViewById(R.id.tab_notes);
+        View tabTodos = findViewById(R.id.tab_todos);
+        if (tabNotes != null) {
+            tabNotes.setOnClickListener(v -> {
+                // 当前页面为笔记列表，无需跳转
+            });
+        }
+        if (tabTodos != null) {
+            tabTodos.setOnClickListener(v -> {
+                startActivity(new Intent(Intent.ACTION_VIEW, NotePad.Todos.CONTENT_URI));
+            });
+        }
     }
 
     /**
@@ -327,10 +364,6 @@ public class NotesList extends ListActivity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == R.id.menu_add) {
-            /*
-             * 使用 Intent 启动新的 Activity。该 Activity 的过滤器需包含 ACTION_INSERT。
-             * 未设置类别，默认视为 DEFAULT。效果是启动 NotePad 中的 NoteEditor。
-             */
             startActivity(new Intent(Intent.ACTION_INSERT, getIntent().getData()));
             return true;
         } else if (item.getItemId() == R.id.menu_paste) {
@@ -343,6 +376,8 @@ public class NotesList extends ListActivity {
         }
         return super.onOptionsItemSelected(item);
     }
+
+    
 
     /**
      * 当用户在列表中对某条笔记进行上下文点击（长按）时调用。NotesList 在 onCreate() 中
