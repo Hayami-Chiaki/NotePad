@@ -39,6 +39,11 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.widget.EditText;
+import android.widget.Spinner;
+import android.widget.ArrayAdapter;
+import android.widget.AdapterView;
+import android.view.View;
+import java.util.ArrayList;
 
 /**
  * 此 Activity 负责“编辑”笔记：包括响应 {@link Intent#ACTION_VIEW}（查看数据）、
@@ -60,7 +65,8 @@ public class NoteEditor extends Activity {
         new String[] {
             NotePad.Notes._ID,
             NotePad.Notes.COLUMN_NAME_TITLE,
-            NotePad.Notes.COLUMN_NAME_NOTE
+            NotePad.Notes.COLUMN_NAME_NOTE,
+            NotePad.Notes.COLUMN_NAME_CATEGORY_ID
     };
 
     // Activity 保存状态的键名
@@ -77,6 +83,10 @@ public class NoteEditor extends Activity {
     private EditText mText;
     private EditText mTitle;
     private String mOriginalContent;
+    private Spinner mCategorySpinner;
+    private ArrayAdapter<String> mCategoryAdapter;
+    private ArrayList<Long> mCategoryIds = new ArrayList<>();
+    private Long mCategoryId = null;
 
     /**
      * 自定义 EditText：在每行文本之间绘制横线。
@@ -217,12 +227,20 @@ public class NoteEditor extends Activity {
         // 获取布局中的 EditText 句柄。
         mText = (EditText) findViewById(R.id.note);
         mTitle = (EditText) findViewById(R.id.edit_title);
+        mCategorySpinner = (Spinner) findViewById(R.id.category_spinner);
+        setupCategorySpinner();
 
         /*
          * 若 Activity 之前停止过，其状态保存在 ORIGINAL_CONTENT 键中，这里恢复该状态。
          */
         if (savedInstanceState != null) {
             mOriginalContent = savedInstanceState.getString(ORIGINAL_CONTENT);
+        }
+
+        if (intent.hasExtra("extra_category_id")) {
+            long cid = intent.getLongExtra("extra_category_id", -1);
+            if (cid > 0) mCategoryId = cid;
+            selectCategoryInSpinner();
         }
     }
 
@@ -271,8 +289,11 @@ public class NoteEditor extends Activity {
 
             // 从 Cursor 获取笔记文本并放入 TextView，而不改变文本光标位置。
             int colNoteIndex = mCursor.getColumnIndex(NotePad.Notes.COLUMN_NAME_NOTE);
+            int colCatIndex = mCursor.getColumnIndex(NotePad.Notes.COLUMN_NAME_CATEGORY_ID);
             String note = mCursor.getString(colNoteIndex);
             mText.setTextKeepState(note);
+            mCategoryId = mCursor.isNull(colCatIndex) ? null : mCursor.getLong(colCatIndex);
+            selectCategoryInSpinner();
 
             // 保存原始笔记文本，以便用户撤销更改。
             if (mOriginalContent == null) {
@@ -370,6 +391,46 @@ public class NoteEditor extends Activity {
         return super.onOptionsItemSelected(item);
     }
 
+    private void setupCategorySpinner() {
+        Cursor cats = getContentResolver().query(NotePad.Categories.CONTENT_URI,
+                new String[]{ NotePad.Categories._ID, NotePad.Categories.COLUMN_NAME_NAME },
+                null, null, NotePad.Categories.DEFAULT_SORT_ORDER);
+        ArrayList<String> names = new ArrayList<>();
+        mCategoryIds.clear();
+        names.add("无分类");
+        mCategoryIds.add(null);
+        if (cats != null) {
+            while (cats.moveToNext()) {
+                mCategoryIds.add(cats.getLong(0));
+                names.add(cats.getString(1));
+            }
+            cats.close();
+        }
+        mCategoryAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, names);
+        mCategoryAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        mCategorySpinner.setAdapter(mCategoryAdapter);
+        mCategorySpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                mCategoryId = mCategoryIds.get(position);
+            }
+            @Override public void onNothingSelected(AdapterView<?> parent) {}
+        });
+    }
+
+    private void selectCategoryInSpinner() {
+        if (mCategorySpinner == null || mCategoryIds == null) return;
+        if (mCategoryId == null) {
+            mCategorySpinner.setSelection(0);
+            return;
+        }
+        for (int i = 0; i < mCategoryIds.size(); i++) {
+            Long id = mCategoryIds.get(i);
+            if (id != null && id.equals(mCategoryId)) {
+                mCategorySpinner.setSelection(i);
+                break;
+            }
+        }
+    }
 //BEGIN_INCLUDE(paste)
     /**
      * 辅助方法：使用剪贴板内容替换笔记数据。
@@ -459,8 +520,13 @@ public class NoteEditor extends Activity {
             values.put(NotePad.Notes.COLUMN_NAME_TITLE, title);
         }
 
-        // 将目标笔记文本放入映射。
+        // 将目标笔记文本与分类放入映射。
         values.put(NotePad.Notes.COLUMN_NAME_NOTE, text);
+        if (mCategoryId != null) {
+            values.put(NotePad.Notes.COLUMN_NAME_CATEGORY_ID, mCategoryId);
+        } else {
+            values.putNull(NotePad.Notes.COLUMN_NAME_CATEGORY_ID);
+        }
 
         /*
          * 使用映射中的新值更新提供者。ListView 会自动更新：提供者为查询 Cursor 设置了通知 URI，

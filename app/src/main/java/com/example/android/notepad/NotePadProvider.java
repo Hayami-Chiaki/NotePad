@@ -62,7 +62,7 @@ public class NotePadProvider extends ContentProvider implements PipeDataWriter<C
     /**
      * 数据库版本
      */
-    private static final int DATABASE_VERSION = 3;
+    private static final int DATABASE_VERSION = 4;
 
     /**
      * 从数据库选择列所用的投影映射
@@ -74,6 +74,7 @@ public class NotePadProvider extends ContentProvider implements PipeDataWriter<C
      */
     private static HashMap<String, String> sLiveFolderProjectionMap;
     private static HashMap<String, String> sTodosProjectionMap;
+    private static HashMap<String, String> sCategoriesProjectionMap;
 
     /**
      * 读取单条笔记的标准投影。
@@ -99,6 +100,8 @@ public class NotePadProvider extends ContentProvider implements PipeDataWriter<C
     private static final int LIVE_FOLDER_NOTES = 3;
     private static final int TODOS = 4;
     private static final int TODO_ID = 5;
+    private static final int CATEGORIES = 6;
+    private static final int CATEGORY_ID = 7;
 
     /**
      * UriMatcher 实例
@@ -130,6 +133,8 @@ public class NotePadProvider extends ContentProvider implements PipeDataWriter<C
         sUriMatcher.addURI(NotePad.AUTHORITY, "live_folders/notes", LIVE_FOLDER_NOTES);
         sUriMatcher.addURI(NotePad.AUTHORITY, "todos", TODOS);
         sUriMatcher.addURI(NotePad.AUTHORITY, "todos/#", TODO_ID);
+        sUriMatcher.addURI(NotePad.AUTHORITY, "categories", CATEGORIES);
+        sUriMatcher.addURI(NotePad.AUTHORITY, "categories/#", CATEGORY_ID);
 
         /*
          * 创建并初始化返回所有列的投影映射
@@ -155,6 +160,7 @@ public class NotePadProvider extends ContentProvider implements PipeDataWriter<C
         sNotesProjectionMap.put(
                 NotePad.Notes.COLUMN_NAME_MODIFICATION_DATE,
                 NotePad.Notes.COLUMN_NAME_MODIFICATION_DATE);
+        sNotesProjectionMap.put(NotePad.Notes.COLUMN_NAME_CATEGORY_ID, NotePad.Notes.COLUMN_NAME_CATEGORY_ID);
 
         /*
          * 创建并初始化用于 Live Folders 的投影映射
@@ -176,6 +182,11 @@ public class NotePadProvider extends ContentProvider implements PipeDataWriter<C
         sTodosProjectionMap.put(NotePad.Todos.COLUMN_NAME_COMPLETED, NotePad.Todos.COLUMN_NAME_COMPLETED);
         sTodosProjectionMap.put(NotePad.Todos.COLUMN_NAME_CREATE_DATE, NotePad.Todos.COLUMN_NAME_CREATE_DATE);
         sTodosProjectionMap.put(NotePad.Todos.COLUMN_NAME_MODIFICATION_DATE, NotePad.Todos.COLUMN_NAME_MODIFICATION_DATE);
+        sCategoriesProjectionMap = new HashMap<String, String>();
+        sCategoriesProjectionMap.put(NotePad.Categories._ID, NotePad.Categories._ID);
+        sCategoriesProjectionMap.put(NotePad.Categories.COLUMN_NAME_NAME, NotePad.Categories.COLUMN_NAME_NAME);
+        sCategoriesProjectionMap.put(NotePad.Categories.COLUMN_NAME_CREATE_DATE, NotePad.Categories.COLUMN_NAME_CREATE_DATE);
+        sCategoriesProjectionMap.put(NotePad.Categories.COLUMN_NAME_MODIFICATION_DATE, NotePad.Categories.COLUMN_NAME_MODIFICATION_DATE);
     }
 
     /**
@@ -199,6 +210,7 @@ public class NotePadProvider extends ContentProvider implements PipeDataWriter<C
                    + NotePad.Notes._ID + " INTEGER PRIMARY KEY,"
                    + NotePad.Notes.COLUMN_NAME_TITLE + " TEXT,"
                    + NotePad.Notes.COLUMN_NAME_NOTE + " TEXT,"
+                   + NotePad.Notes.COLUMN_NAME_CATEGORY_ID + " INTEGER,"
                    + NotePad.Notes.COLUMN_NAME_CREATE_DATE + " INTEGER,"
                    + NotePad.Notes.COLUMN_NAME_MODIFICATION_DATE + " INTEGER"
                    + ");");
@@ -210,6 +222,12 @@ public class NotePadProvider extends ContentProvider implements PipeDataWriter<C
                    + NotePad.Todos.COLUMN_NAME_CREATE_DATE + " INTEGER,"
                    + NotePad.Todos.COLUMN_NAME_MODIFICATION_DATE + " INTEGER"
                    + ");");
+           db.execSQL("CREATE TABLE " + NotePad.Categories.TABLE_NAME + " ("
+                   + NotePad.Categories._ID + " INTEGER PRIMARY KEY,"
+                   + NotePad.Categories.COLUMN_NAME_NAME + " TEXT NOT NULL,"
+                   + NotePad.Categories.COLUMN_NAME_CREATE_DATE + " INTEGER,"
+                   + NotePad.Categories.COLUMN_NAME_MODIFICATION_DATE + " INTEGER"
+                   + ");");
        }
 
        /**
@@ -217,7 +235,7 @@ public class NotePadProvider extends ContentProvider implements PipeDataWriter<C
         * 示例中通过清空现有数据来升级数据库；真实应用应就地升级。
         */
       @Override
-      public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+          public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
           Log.w(TAG, "Upgrading database from version " + oldVersion + " to " + newVersion);
 
           if (oldVersion < 3) {
@@ -230,7 +248,16 @@ public class NotePadProvider extends ContentProvider implements PipeDataWriter<C
                       + NotePad.Todos.COLUMN_NAME_MODIFICATION_DATE + " INTEGER"
                       + ");");
           }
-      }
+          if (oldVersion < 4) {
+              db.execSQL("ALTER TABLE " + NotePad.Notes.TABLE_NAME + " ADD COLUMN " + NotePad.Notes.COLUMN_NAME_CATEGORY_ID + " INTEGER");
+              db.execSQL("CREATE TABLE IF NOT EXISTS " + NotePad.Categories.TABLE_NAME + " ("
+                      + NotePad.Categories._ID + " INTEGER PRIMARY KEY,"
+                      + NotePad.Categories.COLUMN_NAME_NAME + " TEXT NOT NULL,"
+                      + NotePad.Categories.COLUMN_NAME_CREATE_DATE + " INTEGER,"
+                      + NotePad.Categories.COLUMN_NAME_MODIFICATION_DATE + " INTEGER"
+                      + ");");
+          }
+       }
    }
 
    /**
@@ -299,7 +326,16 @@ public class NotePadProvider extends ContentProvider implements PipeDataWriter<C
                qb.appendWhere(
                        NotePad.Todos._ID + "=" + uri.getPathSegments().get(NotePad.Todos.TODO_ID_PATH_POSITION));
                break;
-
+            case CATEGORIES:
+                qb.setTables(NotePad.Categories.TABLE_NAME);
+                qb.setProjectionMap(sCategoriesProjectionMap);
+                break;
+            case CATEGORY_ID:
+                qb.setTables(NotePad.Categories.TABLE_NAME);
+                qb.setProjectionMap(sCategoriesProjectionMap);
+                qb.appendWhere(
+                        NotePad.Categories._ID + "=" + uri.getPathSegments().get(NotePad.Categories.CATEGORY_ID_PATH_POSITION));
+                break;
            default:
                // 若 URI 不匹配任何已知模式，抛出异常。
                throw new IllegalArgumentException("Unknown URI " + uri);
@@ -309,7 +345,13 @@ public class NotePadProvider extends ContentProvider implements PipeDataWriter<C
        String orderBy;
        // 若未指定排序，使用默认排序
        if (TextUtils.isEmpty(sortOrder)) {
-           orderBy = (match == TODOS || match == TODO_ID) ? NotePad.Todos.DEFAULT_SORT_ORDER : NotePad.Notes.DEFAULT_SORT_ORDER;
+           if (match == TODOS || match == TODO_ID) {
+               orderBy = NotePad.Todos.DEFAULT_SORT_ORDER;
+           } else if (match == CATEGORIES || match == CATEGORY_ID) {
+               orderBy = NotePad.Categories.DEFAULT_SORT_ORDER;
+           } else {
+               orderBy = NotePad.Notes.DEFAULT_SORT_ORDER;
+           }
        } else {
            // 否则使用传入的排序
            orderBy = sortOrder;
@@ -364,6 +406,11 @@ public class NotePadProvider extends ContentProvider implements PipeDataWriter<C
                return NotePad.Todos.CONTENT_TYPE;
            case TODO_ID:
                return NotePad.Todos.CONTENT_ITEM_TYPE;
+
+            case CATEGORIES:
+                return NotePad.Categories.CONTENT_TYPE;
+            case CATEGORY_ID:
+                return NotePad.Categories.CONTENT_ITEM_TYPE;
 
           // 若 URI 模式不匹配任何允许的模式，抛出异常。
            default:
@@ -504,7 +551,7 @@ public class NotePadProvider extends ContentProvider implements PipeDataWriter<C
 
         // 验证传入的 URI。插入仅允许使用完整的提供者 URI。
         int match = sUriMatcher.match(uri);
-        if (match != NOTES && match != TODOS) {
+        if (match != NOTES && match != TODOS && match != CATEGORIES) {
             throw new IllegalArgumentException("Unknown URI " + uri);
         }
 
@@ -537,7 +584,7 @@ public class NotePadProvider extends ContentProvider implements PipeDataWriter<C
             if (values.containsKey(NotePad.Notes.COLUMN_NAME_NOTE) == false) {
                 values.put(NotePad.Notes.COLUMN_NAME_NOTE, "");
             }
-        } else {
+        } else if (match == TODOS) {
             if (values.containsKey(NotePad.Todos.COLUMN_NAME_CREATE_DATE) == false) {
                 values.put(NotePad.Todos.COLUMN_NAME_CREATE_DATE, now);
             }
@@ -552,6 +599,16 @@ public class NotePadProvider extends ContentProvider implements PipeDataWriter<C
             }
             if (values.containsKey(NotePad.Todos.COLUMN_NAME_COMPLETED) == false) {
                 values.put(NotePad.Todos.COLUMN_NAME_COMPLETED, 0);
+            }
+        } else {
+            if (values.containsKey(NotePad.Categories.COLUMN_NAME_CREATE_DATE) == false) {
+                values.put(NotePad.Categories.COLUMN_NAME_CREATE_DATE, now);
+            }
+            if (values.containsKey(NotePad.Categories.COLUMN_NAME_MODIFICATION_DATE) == false) {
+                values.put(NotePad.Categories.COLUMN_NAME_MODIFICATION_DATE, now);
+            }
+            if (values.containsKey(NotePad.Categories.COLUMN_NAME_NAME) == false) {
+                values.put(NotePad.Categories.COLUMN_NAME_NAME, "");
             }
         }
 
@@ -568,13 +625,20 @@ public class NotePadProvider extends ContentProvider implements PipeDataWriter<C
                 values
             );
             baseUri = NotePad.Notes.CONTENT_ID_URI_BASE;
-        } else {
+        } else if (match == TODOS) {
             rowId = db.insert(
                 NotePad.Todos.TABLE_NAME,
                 NotePad.Todos.COLUMN_NAME_CONTENT,
                 values
             );
             baseUri = NotePad.Todos.CONTENT_ID_URI_BASE;
+        } else {
+            rowId = db.insert(
+                NotePad.Categories.TABLE_NAME,
+                NotePad.Categories.COLUMN_NAME_NAME,
+                values
+            );
+            baseUri = NotePad.Categories.CONTENT_ID_URI_BASE;
         }
 
         // If the insert succeeded, the row ID exists.
@@ -659,7 +723,16 @@ public class NotePadProvider extends ContentProvider implements PipeDataWriter<C
                 }
                 count = db.delete(NotePad.Todos.TABLE_NAME, finalWhere, whereArgs);
                 break;
-
+            case CATEGORIES:
+                count = db.delete(NotePad.Categories.TABLE_NAME, where, whereArgs);
+                break;
+            case CATEGORY_ID:
+                finalWhere = NotePad.Categories._ID + " = " + uri.getPathSegments().get(NotePad.Categories.CATEGORY_ID_PATH_POSITION);
+                if (where != null) {
+                    finalWhere = finalWhere + " AND " + where;
+                }
+                count = db.delete(NotePad.Categories.TABLE_NAME, finalWhere, whereArgs);
+                break;
             // 若传入模式非法，抛出异常。
             default:
                 throw new IllegalArgumentException("Unknown URI " + uri);
@@ -756,6 +829,16 @@ public class NotePadProvider extends ContentProvider implements PipeDataWriter<C
                         finalWhere,
                         whereArgs
                 );
+                break;
+            case CATEGORIES:
+                count = db.update(NotePad.Categories.TABLE_NAME, values, where, whereArgs);
+                break;
+            case CATEGORY_ID:
+                finalWhere = NotePad.Categories._ID + " = " + uri.getPathSegments().get(NotePad.Categories.CATEGORY_ID_PATH_POSITION);
+                if (where !=null) {
+                    finalWhere = finalWhere + " AND " + where;
+                }
+                count = db.update(NotePad.Categories.TABLE_NAME, values, finalWhere, whereArgs);
                 break;
             // 若传入模式非法，抛出异常。
             default:

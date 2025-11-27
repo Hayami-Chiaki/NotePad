@@ -42,7 +42,15 @@ import android.widget.TextView;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.graphics.Color;
+import android.view.View;
+import android.content.ContentValues;
+import android.content.ContentUris;
 import android.widget.SearchView;
+import android.widget.LinearLayout;
+import android.widget.EditText;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
+import android.graphics.drawable.GradientDrawable;
 import java.util.Locale;
 import java.util.Date;
 import java.util.TimeZone;
@@ -77,6 +85,7 @@ public class NotesList extends ListActivity {
 
     // 列表适配器引用，便于在搜索时更新游标
     private SimpleCursorAdapter mAdapter;
+    private Long mCurrentCategoryId = null;
 
     /**
      * 当 Android 从零启动此 Activity 时会调用 onCreate。
@@ -163,6 +172,9 @@ public class NotesList extends ListActivity {
         // 为 ListView 设置刚创建的游标适配器，并保存引用。
         mAdapter = adapter;
         setListAdapter(mAdapter);
+
+        // 渲染分类条
+        renderCategoriesBar();
 
         // 底部导航美化：图标+文字，设置选中态
         ImageView tabNotesIcon = (ImageView) findViewById(R.id.tab_notes_icon);
@@ -267,6 +279,20 @@ public class NotesList extends ListActivity {
             String like = "%" + query + "%";
             selectionArgs = new String[] { like, like };
         }
+        if (mCurrentCategoryId != null) {
+            String catWhere = NotePad.Notes.COLUMN_NAME_CATEGORY_ID + " = ?";
+            if (selection == null) {
+                selection = catWhere;
+                selectionArgs = new String[] { String.valueOf(mCurrentCategoryId) };
+            } else {
+                // 合并查询与分类
+                String[] newArgs = new String[selectionArgs.length + 1];
+                System.arraycopy(selectionArgs, 0, newArgs, 0, selectionArgs.length);
+                newArgs[newArgs.length - 1] = String.valueOf(mCurrentCategoryId);
+                selectionArgs = newArgs;
+                selection = "(" + selection + ") AND " + catWhere;
+            }
+        }
 
         Cursor c = getContentResolver().query(
                 uri,
@@ -277,6 +303,153 @@ public class NotesList extends ListActivity {
         );
         // 更新适配器游标，自动关闭旧游标
         mAdapter.changeCursor(c);
+    }
+
+    private void renderCategoriesBar() {
+        LinearLayout bar = (LinearLayout) findViewById(R.id.categories_bar);
+        if (bar == null) return;
+        bar.removeAllViews();
+
+        addCategoryChip(bar, null, "全部", true);
+
+        Cursor cats = getContentResolver().query(
+                NotePad.Categories.CONTENT_URI,
+                new String[]{ NotePad.Categories._ID, NotePad.Categories.COLUMN_NAME_NAME },
+                null, null, NotePad.Categories.DEFAULT_SORT_ORDER);
+        if (cats != null) {
+            while (cats.moveToNext()) {
+                long id = cats.getLong(0);
+                String name = cats.getString(1);
+                addCategoryChip(bar, id, name, false);
+            }
+            cats.close();
+        }
+        addAddCategoryChip(bar);
+        highlightSelectedCategory(bar);
+    }
+
+    private void addCategoryChip(LinearLayout bar, Long id, String text, boolean isAll) {
+        TextView tv = new TextView(this);
+        tv.setText(text);
+        tv.setTextSize(14f);
+        tv.setPadding(24, 12, 24, 12);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(24f);
+        bg.setColor(0xFFF5F5F5);
+        tv.setBackground(bg);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(8, 8, 8, 8);
+        tv.setLayoutParams(lp);
+        tv.setTag(id);
+        tv.setOnClickListener(v -> {
+            mCurrentCategoryId = isAll ? null : id;
+            renderCategoriesBar();
+            applyFilter("");
+        });
+        if (!isAll && id != null) {
+            tv.setOnLongClickListener(v -> {
+                showCategoryActions(id, text);
+                return true;
+            });
+        }
+        bar.addView(tv);
+    }
+
+    private void addAddCategoryChip(LinearLayout bar) {
+        TextView add = new TextView(this);
+        add.setText("+");
+        add.setTextSize(18f);
+        add.setPadding(24, 12, 24, 12);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(24f);
+        bg.setColor(0xFFE8F5E9);
+        add.setBackground(bg);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(8, 8, 8, 8);
+        add.setLayoutParams(lp);
+        add.setOnClickListener(v -> showCreateCategoryDialog());
+        bar.addView(add);
+    }
+
+    private void highlightSelectedCategory(LinearLayout bar) {
+        final int count = bar.getChildCount();
+        for (int i = 0; i < count; i++) {
+            View child = bar.getChildAt(i);
+            if (!(child instanceof TextView)) continue;
+            TextView tv = (TextView) child;
+            String t = tv.getText().toString();
+            boolean isAll = "全部".equals(t);
+            boolean selected = (mCurrentCategoryId == null && isAll)
+                    || (!isAll && tagEqualsId(tv.getTag(), mCurrentCategoryId));
+            tv.setTextColor(selected ? Color.parseColor("#2196F3") : Color.parseColor("#333333"));
+        }
+    }
+
+    private boolean tagEqualsId(Object tag, Long id) {
+        if (tag == null || id == null) return false;
+        if (tag instanceof Long) return ((Long) tag).equals(id);
+        try { return Long.parseLong(String.valueOf(tag)) == id; } catch (Exception e) { return false; }
+    }
+
+    private void showCreateCategoryDialog() {
+        final EditText input = new EditText(this);
+        input.setHint("分类名称");
+        new AlertDialog.Builder(this)
+                .setTitle("新建分类")
+                .setView(input)
+                .setPositiveButton("确定", (d, w) -> {
+                    String name = input.getText().toString().trim();
+                    if (name.length() > 0) {
+                        ContentValues v = new ContentValues();
+                        v.put(NotePad.Categories.COLUMN_NAME_NAME, name);
+                        getContentResolver().insert(NotePad.Categories.CONTENT_URI, v);
+                        renderCategoriesBar();
+                    }
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void showCategoryActions(long id, String currentName) {
+        final CharSequence[] items = new CharSequence[]{ "重命名", "删除" };
+        new AlertDialog.Builder(this)
+                .setTitle(currentName)
+                .setItems(items, (dialog, which) -> {
+                    if (which == 0) {
+                        final EditText input = new EditText(this);
+                        input.setText(currentName);
+                        new AlertDialog.Builder(this)
+                                .setTitle("重命名分类")
+                                .setView(input)
+                                .setPositiveButton("确定", (d, w) -> {
+                                    String name = input.getText().toString().trim();
+                                    if (name.length() > 0) {
+                                        ContentValues v = new ContentValues();
+                                        v.put(NotePad.Categories.COLUMN_NAME_NAME, name);
+                                        getContentResolver().update(ContentUris.withAppendedId(NotePad.Categories.CONTENT_URI, id), v, null, null);
+                                        renderCategoriesBar();
+                                    }
+                                })
+                                .setNegativeButton("取消", null)
+                                .show();
+                    } else {
+                        // 删除分类前，将该分类下笔记的分类置空
+                        ContentValues v = new ContentValues();
+                        v.putNull(NotePad.Notes.COLUMN_NAME_CATEGORY_ID);
+                        getContentResolver().update(NotePad.Notes.CONTENT_URI, v, NotePad.Notes.COLUMN_NAME_CATEGORY_ID + "=?", new String[]{ String.valueOf(id) });
+                        getContentResolver().delete(ContentUris.withAppendedId(NotePad.Categories.CONTENT_URI, id), null, null);
+                        if (mCurrentCategoryId != null && mCurrentCategoryId == id) {
+                            mCurrentCategoryId = null;
+                        }
+                        renderCategoriesBar();
+                        applyFilter("");
+                    }
+                })
+                .show();
     }
 
     @Override
@@ -364,7 +537,11 @@ public class NotesList extends ListActivity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == R.id.menu_add) {
-            startActivity(new Intent(Intent.ACTION_INSERT, getIntent().getData()));
+            Intent add = new Intent(Intent.ACTION_INSERT, getIntent().getData());
+            if (mCurrentCategoryId != null) {
+                add.putExtra("extra_category_id", mCurrentCategoryId);
+            }
+            startActivity(add);
             return true;
         } else if (item.getItemId() == R.id.menu_paste) {
             /*
