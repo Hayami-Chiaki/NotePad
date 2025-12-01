@@ -220,16 +220,7 @@ public class TodoList extends ListActivity {
         } catch (ClassCastException e) {
             return;
         }
-        Uri uri = ContentUris.withAppendedId(getIntent().getData(), info.id);
-        Intent[] specifics = new Intent[1];
-        specifics[0] = new Intent(Intent.ACTION_EDIT, uri);
-        MenuItem[] items = new MenuItem[1];
-        Intent intent = new Intent(null, uri);
-        intent.addCategory(Intent.CATEGORY_ALTERNATIVE);
-        menu.addIntentOptions(Menu.CATEGORY_ALTERNATIVE, 0, 0, null, specifics, intent, 0, items);
-        if (items[0] != null) {
-            items[0].setShortcut('1', 'e');
-        }
+        // 只保留删除选项
         menu.add(0, Menu.FIRST, 0, R.string.menu_delete);
     }
 
@@ -245,8 +236,10 @@ public class TodoList extends ListActivity {
         switch (item.getItemId()) {
             case Menu.FIRST:
                 getContentResolver().delete(noteUri, null, null);
+                reload(null); // 刷新列表
                 return true;
         }
         return super.onContextItemSelected(item);
     }
+
 }

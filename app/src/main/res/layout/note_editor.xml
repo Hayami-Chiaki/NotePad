@@ -25,14 +25,32 @@
         android:hint="@string/text_title"
         android:singleLine="true"
         android:textSize="18sp"
-        android:padding="8dp" />
-
-    <Spinner
-        android:id="@+id/category_spinner"
+        android:padding="8dp"
+        android:background="@color/colorOnPrimary"/>
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingLeft="8dp"
-        android:paddingRight="8dp" />
+        android:orientation="horizontal"
+        android:background="@color/colorOnPrimary">
+
+        <TextView
+            android:id="@+id/category_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="分类："
+            android:textColor="@color/colorOnSurface"
+            android:textSize="16sp"
+            android:padding="8dp" />
+
+        <Spinner
+            android:id="@+id/category_spinner"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_gravity="center_vertical"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="10dp" />
+    </LinearLayout>
 
     <view
         class="com.example.android.notepad.NoteEditor$LinedEditText"
@@ -40,7 +58,7 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:background="@android:color/transparent"
+        android:background="@color/colorOnPrimary"
         android:padding="5dp"
         android:scrollbars="vertical"
         android:fadingEdge="vertical"

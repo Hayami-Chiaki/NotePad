@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 主要颜色 -->
+    <color name="colorPrimary">#2962FF</color>
+    <color name="colorOnPrimary">#FFFFFF</color>
+    <color name="colorSurface">#FFFFFF</color>
+    <color name="colorOnSurface">#333333</color>
+    <color name="colorOnSurfaceMuted">#9E9E9E</color>
+    <color name="colorDivider">#E0E0E0</color>
+
+    <!-- 低饱和度蓝色系列 -->
+    <color name="blue_light_muted">#BBDEFB</color>
+    <color name="blue_muted">#90CAF9</color>
+    <color name="blue_medium_muted">#64B5F6</color>
+    <color name="blue_deep_muted">#42A5F5</color>
+    <color name="blue_soft">#81D4FA</color>
+    <color name="blue_greyish">#90A4AE</color>
+</resources>
