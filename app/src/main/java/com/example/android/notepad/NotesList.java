@@ -398,6 +398,7 @@ public class NotesList extends ListActivity {
     private void showCreateCategoryDialog() {
         final EditText input = new EditText(this);
         input.setHint("分类名称");
+        input.setTextColor(Color.BLACK);
         new AlertDialog.Builder(this)
                 .setTitle("新建分类")
                 .setView(input)
@@ -422,6 +423,7 @@ public class NotesList extends ListActivity {
                     if (which == 0) {
                         final EditText input = new EditText(this);
                         input.setText(currentName);
+                        input.setTextColor(Color.BLACK);
                         new AlertDialog.Builder(this)
                                 .setTitle("重命名分类")
                                 .setView(input)
