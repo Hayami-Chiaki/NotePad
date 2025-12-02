@@ -21,16 +21,18 @@
     android:paddingLeft="6dip"
     android:paddingRight="6dip"
     android:paddingBottom="3dip">
-   					  
-    <EditText android:id="@+id/title" 
-        android:maxLines="1" 
+
+    <EditText
+        android:id="@+id/title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_marginTop="2dp"
         android:layout_marginBottom="15dp"
-        android:layout_width="wrap_content"
-      	android:ems="25"
-        android:layout_height="wrap_content" 
         android:autoText="true"
         android:capitalize="sentences"
+        android:ems="25"
+        android:maxLines="1"
+        android:minHeight="48dp"
         android:scrollHorizontally="true" />
    		
     <Button android:id="@+id/ok"

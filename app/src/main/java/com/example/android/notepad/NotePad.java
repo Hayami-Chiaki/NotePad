@@ -20,15 +20,14 @@ import android.net.Uri;
 import android.provider.BaseColumns;
 
 /**
- * Defines a contract between the Note Pad content provider and its clients. A contract defines the
- * information that a client needs to access the provider as one or more data tables. A contract
- * is a public, non-extendable (final) class that contains constants defining column names and
- * URIs. A well-written client depends only on the constants in the contract.
+ * 定义 NotePad 内容提供者与其客户端之间的契约。契约描述客户端以一个或多个数据表形式
+ * 访问提供者所需的信息。契约类是公开且不可扩展（final），仅包含列名与 URI 等常量；
+ * 设计良好的客户端应只依赖这些常量。
  */
 public final class NotePad {
     public static final String AUTHORITY = "com.google.provider.NotePad";
 
-    // This class cannot be instantiated
+    // 此类不可被实例化
     private NotePad() {
     }
 
@@ -41,114 +40,159 @@ public final class NotePad {
         private Notes() {}
 
         /**
-         * The table name offered by this provider
+         * 提供者所提供的表名
          */
         public static final String TABLE_NAME = "notes";
 
         /*
-         * URI definitions
+         * URI 定义
          */
 
         /**
-         * The scheme part for this provider's URI
+         * 提供者 URI 的 scheme 部分
          */
         private static final String SCHEME = "content://";
 
         /**
-         * Path parts for the URIs
+         * URI 的路径部分
          */
 
         /**
-         * Path part for the Notes URI
+         * Notes URI 的路径部分
          */
         private static final String PATH_NOTES = "/notes";
 
         /**
-         * Path part for the Note ID URI
+         * Note ID URI 的路径部分
          */
         private static final String PATH_NOTE_ID = "/notes/";
 
         /**
-         * 0-relative position of a note ID segment in the path part of a note ID URI
+         * Note ID URI 路径中，note ID 片段的 0 起始位置
          */
         public static final int NOTE_ID_PATH_POSITION = 1;
 
         /**
-         * Path part for the Live Folder URI
+         * Live Folder URI 的路径部分
          */
         private static final String PATH_LIVE_FOLDER = "/live_folders/notes";
 
         /**
-         * The content:// style URL for this table
+         * 此表的 content:// 形式 URL
          */
         public static final Uri CONTENT_URI =  Uri.parse(SCHEME + AUTHORITY + PATH_NOTES);
 
         /**
-         * The content URI base for a single note. Callers must
-         * append a numeric note id to this Uri to retrieve a note
+         * 单条笔记的内容 URI 基础；调用方需将数值 ID 追加到该 URI 以检索笔记。
          */
         public static final Uri CONTENT_ID_URI_BASE
             = Uri.parse(SCHEME + AUTHORITY + PATH_NOTE_ID);
 
         /**
-         * The content URI match pattern for a single note, specified by its ID. Use this to match
-         * incoming URIs or to construct an Intent.
+         * 指定单条笔记（按 ID）的内容 URI 匹配模式，用于匹配传入 URI 或构造 Intent。
          */
         public static final Uri CONTENT_ID_URI_PATTERN
             = Uri.parse(SCHEME + AUTHORITY + PATH_NOTE_ID + "/#");
 
         /**
-         * The content Uri pattern for a notes listing for live folders
+         * 供实时文件夹使用的笔记列表内容 URI 模式
          */
         public static final Uri LIVE_FOLDER_URI
             = Uri.parse(SCHEME + AUTHORITY + PATH_LIVE_FOLDER);
 
         /*
-         * MIME type definitions
+         * MIME 类型定义
          */
 
         /**
-         * The MIME type of {@link #CONTENT_URI} providing a directory of notes.
+         * {@link #CONTENT_URI} 的 MIME 类型（笔记目录）。
          */
         public static final String CONTENT_TYPE = "vnd.android.cursor.dir/vnd.google.note";
 
         /**
-         * The MIME type of a {@link #CONTENT_URI} sub-directory of a single
-         * note.
+         * 单条笔记的 {@link #CONTENT_URI} 子目录 MIME 类型。
          */
         public static final String CONTENT_ITEM_TYPE = "vnd.android.cursor.item/vnd.google.note";
 
         /**
-         * The default sort order for this table
+         * 此表的默认排序
          */
         public static final String DEFAULT_SORT_ORDER = "modified DESC";
 
         /*
-         * Column definitions
+         * 列定义
          */
 
         /**
-         * Column name for the title of the note
-         * <P>Type: TEXT</P>
+         * 笔记标题列名
+         * <P>类型: TEXT</P>
          */
         public static final String COLUMN_NAME_TITLE = "title";
 
         /**
-         * Column name of the note content
-         * <P>Type: TEXT</P>
+         * 笔记内容列名
+         * <P>类型: TEXT</P>
          */
         public static final String COLUMN_NAME_NOTE = "note";
 
         /**
-         * Column name for the creation timestamp
-         * <P>Type: INTEGER (long from System.curentTimeMillis())</P>
+         * 创建时间戳列名
+         * <P>类型: INTEGER（System.currentTimeMillis() 的 long）</P>
          */
         public static final String COLUMN_NAME_CREATE_DATE = "created";
 
         /**
-         * Column name for the modification timestamp
-         * <P>Type: INTEGER (long from System.curentTimeMillis())</P>
+         * 修改时间戳列名
+         * <P>类型: INTEGER（System.currentTimeMillis() 的 long）</P>
          */
+        public static final String COLUMN_NAME_MODIFICATION_DATE = "modified";
+        public static final String COLUMN_NAME_CATEGORY_ID = "category_id";
+    }
+
+    public static final class Todos implements BaseColumns {
+
+        private Todos() {}
+
+        public static final String TABLE_NAME = "todos";
+
+        private static final String SCHEME = "content://";
+
+        private static final String PATH_TODOS = "/todos";
+        private static final String PATH_TODO_ID = "/todos/";
+
+        public static final int TODO_ID_PATH_POSITION = 1;
+
+        public static final Uri CONTENT_URI = Uri.parse(SCHEME + AUTHORITY + PATH_TODOS);
+        public static final Uri CONTENT_ID_URI_BASE = Uri.parse(SCHEME + AUTHORITY + PATH_TODO_ID);
+        public static final Uri CONTENT_ID_URI_PATTERN = Uri.parse(SCHEME + AUTHORITY + PATH_TODO_ID + "/#");
+
+        public static final String CONTENT_TYPE = "vnd.android.cursor.dir/vnd.google.todo";
+        public static final String CONTENT_ITEM_TYPE = "vnd.android.cursor.item/vnd.google.todo";
+
+        public static final String DEFAULT_SORT_ORDER = "modified DESC";
+
+        public static final String COLUMN_NAME_TITLE = "title";
+        public static final String COLUMN_NAME_CONTENT = "content";
+        public static final String COLUMN_NAME_COMPLETED = "completed"; // INTEGER 0/1
+        public static final String COLUMN_NAME_CREATE_DATE = "created";
+        public static final String COLUMN_NAME_MODIFICATION_DATE = "modified";
+    }
+
+    public static final class Categories implements BaseColumns {
+        private Categories() {}
+        public static final String TABLE_NAME = "categories";
+        private static final String SCHEME = "content://";
+        private static final String PATH_CATEGORIES = "/categories";
+        private static final String PATH_CATEGORY_ID = "/categories/";
+        public static final int CATEGORY_ID_PATH_POSITION = 1;
+        public static final Uri CONTENT_URI = Uri.parse(SCHEME + AUTHORITY + PATH_CATEGORIES);
+        public static final Uri CONTENT_ID_URI_BASE = Uri.parse(SCHEME + AUTHORITY + PATH_CATEGORY_ID);
+        public static final Uri CONTENT_ID_URI_PATTERN = Uri.parse(SCHEME + AUTHORITY + PATH_CATEGORY_ID + "/#");
+        public static final String CONTENT_TYPE = "vnd.android.cursor.dir/vnd.google.category";
+        public static final String CONTENT_ITEM_TYPE = "vnd.android.cursor.item/vnd.google.category";
+        public static final String DEFAULT_SORT_ORDER = "_id ASC";
+        public static final String COLUMN_NAME_NAME = "name";
+        public static final String COLUMN_NAME_CREATE_DATE = "created";
         public static final String COLUMN_NAME_MODIFICATION_DATE = "modified";
     }
 }
